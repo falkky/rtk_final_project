@@ -25,10 +25,27 @@ class Exercise:
         Инициализация упражнения.
         """
 
-        self.exercise_type = exercise_type.strip()
-        self.weight = weight
-        self.sets = sets
-        self.reps = reps
+        exercise_type_clean = exercise_type.strip()
+        if not exercise_type_clean:
+            raise ValueError("Тип упражнения не может быть пустым")
+        self.exercise_type = exercise_type_clean
+
+        weight_val = float(weight)
+        if weight_val < 0:
+            raise ValueError("Вес не может быть отрицательным")
+        self.weight = weight_val
+
+        sets_val = int(sets)
+        if sets_val <= 0:
+            raise ValueError("Количество подходов должно быть положительным")
+        self.sets = sets_val
+
+        reps_val = int(reps)
+        if reps_val <= 0:
+            raise ValueError("Количество повторений должно быть положительным")
+        self.reps = reps_val
+
+        # date can be a datetime or a string; keep as provided
         self.date = date
         self.comment = comment
         self.exercise_id = exercise_id

@@ -351,6 +351,24 @@ class ExercisePlannerGUI:
             command=self.plot_volume_over_time
         ).grid(row=0, column=5, padx=5)
 
+        # Меню
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Файл", menu=file_menu)
+        file_menu.add_command(
+            label="Экспорт в CSV...",
+            command=self.export_to_csv
+        )
+        file_menu.add_command(
+            label="Экспорт в JSON...",
+            command=self.export_to_json
+        )
+
+        file_menu.add_separator()
+        file_menu.add_command(label="Выход", command=self.root.quit)
+
     def get_exercise_types(self) -> list:
         """Возвращает список всех типов упражнений."""
         exercises = self.storage.get_all_exercises()
@@ -505,42 +523,43 @@ class ExercisePlannerGUI:
             )
 
     def refresh_exercises_list(self) -> None:
-            """Обновляет список упражнений с учетом фильтров."""
-            # Очистка списка
-            for item in self.exercises_tree.get_children():
-                self.exercises_tree.delete(item)
+        """Обновляет список упражнений с учетом фильтров."""
 
-            # Получение упражнений с учетом фильтра
-            filter_type = self.filter_type.get()
-            exercises = self.storage.get_all_exercises()
+        # Очистка списка
+        for item in self.exercises_tree.get_children():
+            self.exercises_tree.delete(item)
 
-            if filter_type != "all":
-                exercises = [
-                    ex for ex in exercises
-                    if ex.exercise_type == filter_type
-                ]
+        # Получение упражнений с учетом фильтра
+        filter_type = self.filter_type.get()
+        exercises = self.storage.get_all_exercises()
 
-            # Сортировка по дате (новые сначала)
-            exercises.sort(
-                key=lambda x: x.date,
-                reverse=True
-            )
+        if filter_type != "all":
+            exercises = [
+                ex for ex in exercises
+                if ex.exercise_type == filter_type
+            ]
 
-            # Заполнение списка
-            for exercise in exercises:
-                self.exercises_tree.insert("", tk.END, values=(
-                    exercise.exercise_id,
-                    exercise.exercise_type,
-                    exercise.weight,
-                    exercise.sets,
-                    exercise.reps,
-                    exercise.date.strftime("%Y-%m-%d"),
-                    (
-                        exercise.comment[:30] + "..."
-                        if len(exercise.comment) > 30
-                        else exercise.comment
-                    )
-                ))
+        # Сортировка по дате (новые сначала)
+        exercises.sort(
+            key=lambda x: x.date,
+            reverse=True
+        )
+
+        # Заполнение списка
+        for exercise in exercises:
+            self.exercises_tree.insert("", tk.END, values=(
+                exercise.exercise_id,
+                exercise.exercise_type,
+                exercise.weight,
+                exercise.sets,
+                exercise.reps,
+                exercise.date.strftime("%Y-%m-%d"),
+                (
+                    exercise.comment[:30] + "..."
+                    if len(exercise.comment) > 30
+                    else exercise.comment
+                )
+            ))
 
     def reset_filter(self) -> None:
         """Сбрасывает фильтры."""
@@ -616,3 +635,34 @@ class ExercisePlannerGUI:
                 "Ошибка",
                 f"Ошибка при построении графика: {e}"
             )
+
+    def export_to_json(self) -> None:
+        """Экспортирует данные в JSON."""
+        try:
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+            )
+            if filename:
+                self.storage.export_to_JSON(filename)
+                messagebox.showinfo(
+                    "Успех",
+                    f"Данные экспортирована в {filename}"
+                )
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Ошибка при экспорте: {e}")
+
+    def export_to_csv(self) -> None:
+        """Экспортирует данные в CSV."""
+        try:
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if filename:
+                self.storage.export_to_csv(filename)
+                messagebox.showinfo(
+                    "Успех", f"Данные экспортированы в {filename}"
+                )
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Ошибка при экспорте: {e}")

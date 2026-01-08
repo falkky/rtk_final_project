@@ -17,33 +17,22 @@ def validate_weight(weight_str: str) -> Tuple[
     """
     Валидация веса с использованием регулярных выражений.
     """
-    if not weight_str or not weight_str.strip():
+    weight = weight_str.strip()
+    if not weight_str or not weight:
         return False, None, "Вес не может быть пустым"
 
     # Паттерн для валидации веса
     # (неотрицательное число, возможно с десятичной частью)
     pattern = r'^\d+([.]\d{1,2})?$'
 
-    if not re.match(pattern, weight_str.strip()):
+    if not re.match(pattern, weight):
         return (
             False,
             None,
             "Некорректный формат веса. Используйте число (например: 20, 20.5)"
         )
 
-    try:
-        normalized = weight_str.strip()
-        weight = float(normalized)
-
-        if weight < 0:
-            return False, None, "Вес не может быть отрицательным"
-
-        if weight > 1000:  # Ограничение на нереалистично большой вес
-            return False, None, "Вес слишком большой (максимум 1000 кг)"
-
-        return True, weight, None
-    except ValueError:
-        return False, None, "Ошибка при преобразовании веса в число"
+    return True, float(weight), None
 
 
 def validate_integer(

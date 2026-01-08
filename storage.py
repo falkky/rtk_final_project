@@ -127,3 +127,40 @@ class DataStorage:
         Возвращает список всех упражнений.
         """
         return self.exercises.copy()
+
+    def export_to_csv(self, output_file: str) -> None:
+        """
+        Экспортирует данные в указанный CSV файл.
+        """
+        try:
+            os.makedirs(
+                os.path.dirname(output_file) if os.path.dirname(output_file) else '.',
+                exist_ok=True
+            )
+
+            with open(output_file, 'w', encoding='utf-8', newline='') as file:
+                writer = csv.DictWriter(file, fieldnames=[
+                    'exercise_id', 'exercise_type', 'weight',
+                    'sets', 'reps', 'date', 'comment'
+                ])
+                writer.writeheader()
+
+                for exercise in self.exercises:
+                    writer.writerow(exercise.to_dict())
+        except IOError as e:
+            raise IOError(f"Ошибка при экспорте в {output_file}: {e}")
+
+    def export_to_JSON(self, output_file: str) -> None:
+        """
+        Экспортирует данные в указанный JSON файл.
+        """
+        try:
+            os.makedirs(
+                os.path.dirname(output_file) if os.path.dirname(output_file) else '.',
+                exist_ok=True
+            )
+            exercises_data = [exercise.to_dict() for exercise in self.exercises]
+            with open(output_file, 'w', encoding='utf-8') as file:
+                json.dump(exercises_data, file, ensure_ascii=False, indent=4)
+        except IOError as e:
+            raise IOError(f"Ошибка при экспорте в {output_file}: {e}")
