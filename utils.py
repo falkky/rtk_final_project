@@ -63,7 +63,7 @@ def validate_integer(
         return (
             False,
             None,
-            f"Некорректный формат {field_name.lower()}. Используйте целое число"
+            f"Некорректный формат {field_name.lower()}. Нужно целое число"
         )
 
     try:
@@ -116,7 +116,7 @@ def validate_date(date_str: str) -> Tuple[
 
     if not re.match(patterns, date_str):
         return False, None, "Некорректный формат даты. Используйте DD.MM.YYYY"
-    
+
     # Проверяем, что дата может быть преобразована
     try:
         date = datetime.strptime(date_str, '%d.%m.%Y')

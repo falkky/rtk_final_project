@@ -30,12 +30,44 @@ class DataStorage:
         os.makedirs(directory_path, exist_ok=True)
 
         # Загружаем данные при инициализации
-        # self.load_data()
+        self.load_data()
 
     def load_data(self) -> None:
         """
         Загружает данные из CSV файла.
         """
+        self.exercises = []
+        self.next_id = 1
+
+        if not os.path.exists(self.csv_file):
+            return
+
+        try:
+            with open(self.csv_file, 'r', encoding='utf-8') as file:
+                reader = csv.DictReader(file)
+
+                for row in reader:
+                    try:
+                        exercise = Exercise.from_dict({
+                            'exercise_id': int(row.get('exercise_id', 0)),
+                            'exercise_type': row['exercise_type'],
+                            'weight': float(row['weight']),
+                            'sets': int(row['sets']),
+                            'reps': int(row['reps']),
+                            'date': row['date'],
+                            'comment': row.get('comment', '')
+                        })
+                        self.exercises.append(exercise)
+
+                        # Обновляем next_id
+                        if exercise.exercise_id > 0 and exercise.exercise_id >= self.next_id:
+                            self.next_id = exercise.exercise_id + 1
+                    except (ValueError, KeyError) as e:
+                        # Пропускаем некорректные записи
+                        print(f"Предупреждение: пропущена некорректная запись: {e}")
+                        continue
+        except IOError as e:
+            raise IOError(f"Ошибка при чтении файла {self.csv_file}: {e}")
 
     def save_data(self) -> None:
         """
@@ -75,3 +107,9 @@ class DataStorage:
         self.exercises.append(exercise)
         self.save_data()
         return exercise
+    
+    def get_all_exercises(self) -> List[Exercise]:
+        """
+        Возвращает список всех упражнений.
+        """
+        return self.exercises.copy()

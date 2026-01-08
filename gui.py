@@ -30,6 +30,7 @@ class ExercisePlannerGUI:
         self.root.geometry("1200x750")
 
         self.create_widgets()
+        self.refresh_exercises_list()
 
     def create_widgets(self) -> None:
         """Создает все виджеты интерфейса."""
@@ -104,6 +105,7 @@ class ExercisePlannerGUI:
         self.exercise_type_entry.grid(
             row=0, column=1, sticky=(tk.W, tk.E), pady=5
         )
+        self.update_exercise_type_list()
 
         # Вес
         ttk.Label(
@@ -217,6 +219,100 @@ class ExercisePlannerGUI:
         list_frame.columnconfigure(0, weight=1)
         list_frame.rowconfigure(1, weight=1)
 
+        # Фильтры
+        filter_frame = ttk.Frame(list_frame)
+        filter_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        ttk.Label(filter_frame, text="Тип:").grid(row=0, column=0, padx=5)
+        self.filter_type = tk.StringVar(value="all")
+        self.type_combobox = ttk.Combobox(
+            filter_frame,
+            textvariable=self.filter_type,
+            width=15,
+            state="readonly"
+        )
+        self.type_combobox.grid(row=0, column=1, padx=5)
+        self.update_type_filter()
+        ttk.Button(
+            filter_frame,
+            text="Применить фильтр",
+            command=self.refresh_exercises_list
+        ).grid(row=0, column=2, padx=5)
+
+        ttk.Button(
+            filter_frame,
+            text="Сбросить",
+            command=self.reset_filter
+        ).grid(row=0, column=3, padx=5)
+
+        # Список упражнений
+        tree_frame = ttk.Frame(list_frame)
+        tree_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        tree_frame.columnconfigure(0, weight=1)
+        tree_frame.rowconfigure(0, weight=1)
+
+        columns = (
+            "ID",
+            "Тип",
+            "Вес",
+            "Подходы",
+            "Повторения",
+            "Дата",
+            "Комментарий"
+        )
+        self.exercises_tree = ttk.Treeview(
+            tree_frame,
+            columns=columns,
+            show="headings",
+            height=15
+        )
+
+        for col in columns:
+            self.exercises_tree.heading(col, text=col)
+            if col == "ID":
+                self.exercises_tree.column(col, width=50)
+            elif col == "Комментарий":
+                self.exercises_tree.column(col, width=150)
+            else:
+                self.exercises_tree.column(col, width=100)
+
+        scrollbar = ttk.Scrollbar(
+            tree_frame,
+            orient=tk.VERTICAL,
+            command=self.exercises_tree.yview
+        )
+        self.exercises_tree.configure(yscrollcommand=scrollbar.set)
+
+        self.exercises_tree.grid(
+            row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S)
+        )
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        # Кнопки управления упражнениями
+        buttons_frame = ttk.Frame(list_frame)
+        buttons_frame.grid(row=2, column=0, pady=10)
+
+        ttk.Button(
+            buttons_frame,
+            text="Удалить выбранное",
+            command=self.delete_selected_exercise
+        ).grid(row=0, column=0, padx=5)
+
+    def get_exercise_types(self) -> list:
+        """Возвращает список всех типов упражнений."""
+        exercises = self.storage.get_all_exercises()
+        return sorted(set([ex.exercise_type for ex in exercises]))
+
+    def update_exercise_type_list(self) -> None:
+        """Обновляет список типов упражнений для поля ввода."""
+        exercise_types = self.get_exercise_types()
+        self.exercise_type_entry['values'] = exercise_types
+
+    def update_type_filter(self) -> None:
+        """Обновляет список типов упражнений для фильтра."""
+        exercise_types = self.get_exercise_types()
+        self.type_combobox['values'] = ["all"] + exercise_types
+
     def add_exercise(self) -> None:
         """Добавляет новое упражнение."""
         try:
@@ -282,6 +378,21 @@ class ExercisePlannerGUI:
             # Сохранение
             self.storage.add_exercise(exercise)
 
+            # Очистка полей после добавления
+            self.exercise_type_var.set("")
+            self.weight_entry.delete(0, tk.END)
+            self.sets_entry.delete(0, tk.END)
+            self.reps_entry.delete(0, tk.END)
+            self.date_entry.delete(0, tk.END)
+            self.date_entry.insert(0, datetime.now().strftime("%d.%m.%Y"))
+            self.comment_entry.delete(0, tk.END)
+
+            # Обновление интерфейса
+            self.update_exercise_type_list()
+            self.update_type_filter()
+            self.refresh_exercises_list()
+            self.update_statistics()
+
             messagebox.showinfo("Успех", "Упражнение успешно добавлено!")
 
         except ValueError as e:
@@ -294,3 +405,53 @@ class ExercisePlannerGUI:
                 "Ошибка",
                 f"Неожиданная ошибка: {e}"
             )
+
+    def delete_selected_exercise(self) -> None:
+        pass
+
+    def refresh_exercises_list(self) -> None:
+            """Обновляет список упражнений с учетом фильтров."""
+            # Очистка списка
+            for item in self.exercises_tree.get_children():
+                self.exercises_tree.delete(item)
+
+            # Получение упражнений с учетом фильтра
+            filter_type = self.filter_type.get()
+            exercises = self.storage.get_all_exercises()
+
+            if filter_type != "all":
+                exercises = [
+                    ex for ex in exercises
+                    if ex.exercise_type == filter_type
+                ]
+
+            # Сортировка по дате (новые сначала)
+            exercises.sort(
+                key=lambda x: x.date,
+                reverse=True
+            )
+
+            # Заполнение списка
+            for exercise in exercises:
+                self.exercises_tree.insert("", tk.END, values=(
+                    exercise.exercise_id,
+                    exercise.exercise_type,
+                    exercise.weight,
+                    exercise.sets,
+                    exercise.reps,
+                    exercise.date.strftime("%Y-%m-%d"),
+                    (
+                        exercise.comment[:30] + "..."
+                        if len(exercise.comment) > 30
+                        else exercise.comment
+                    )
+                ))
+
+    def reset_filter(self) -> None:
+        """Сбрасывает фильтры."""
+        self.filter_type.set("all")
+        self.refresh_exercises_list()
+
+    def update_statistics(self) -> None:
+        """Обновляет статистику в верхней панели."""
+        pass
