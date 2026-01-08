@@ -7,6 +7,7 @@ import tkinter as tk
 from datetime import datetime
 from tkinter import ttk, messagebox, filedialog
 
+from analysis import ExerciseAnalyzer
 from models import Exercise
 from storage import DataStorage
 from utils import (
@@ -26,11 +27,14 @@ class ExercisePlannerGUI:
         """
         self.root = root
         self.storage = storage
+        self.analyzer = ExerciseAnalyzer(self.storage.get_all_exercises())
+
         self.root.title("Планер физических упражнений")
         self.root.geometry("1200x750")
 
         self.create_widgets()
         self.refresh_exercises_list()
+        self.update_statistics()
 
     def create_widgets(self) -> None:
         """Создает все виджеты интерфейса."""
@@ -298,6 +302,55 @@ class ExercisePlannerGUI:
             command=self.delete_selected_exercise
         ).grid(row=0, column=0, padx=5)
 
+        # Нижняя панель - анализ и графики
+        analysis_frame = ttk.LabelFrame(
+            main_frame,
+            text="Анализ и графики",
+            padding="10"
+        )
+        analysis_frame.grid(
+            row=2, column=0, columnspan=2,
+            sticky=(tk.W, tk.E),
+            pady=(10, 0)
+        )
+
+        ttk.Label(
+            analysis_frame,
+            text="Выберите упражнение для анализа:"
+        ).grid(row=0, column=0, padx=5)
+
+        self.analysis_exercise_type = tk.StringVar()
+
+        self.analysis_type_combobox = ttk.Combobox(
+            analysis_frame,
+            textvariable=self.analysis_exercise_type,
+            width=20,
+            state="readonly"
+        )
+        self.analysis_type_combobox.grid(row=0, column=1, padx=5)
+        self.update_analysis_types()
+
+        ttk.Button(
+            analysis_frame,
+            text="Прогресс по весу",
+            command=self.plot_progress
+        ).grid(row=0, column=2, padx=5)
+        ttk.Button(
+            analysis_frame,
+            text="Круговая диаграмма объема",
+            command=self.plot_volume_pie
+        ).grid(row=0, column=3, padx=5)
+        ttk.Button(
+            analysis_frame,
+            text="Максимальные веса",
+            command=self.plot_max_weights
+        ).grid(row=0, column=4, padx=5)
+        ttk.Button(
+            analysis_frame,
+            text="Динамика объема",
+            command=self.plot_volume_over_time
+        ).grid(row=0, column=5, padx=5)
+
     def get_exercise_types(self) -> list:
         """Возвращает список всех типов упражнений."""
         exercises = self.storage.get_all_exercises()
@@ -312,6 +365,13 @@ class ExercisePlannerGUI:
         """Обновляет список типов упражнений для фильтра."""
         exercise_types = self.get_exercise_types()
         self.type_combobox['values'] = ["all"] + exercise_types
+
+    def update_analysis_types(self) -> None:
+        """Обновляет список типов упражнений для анализа."""
+        exercise_types = self.get_exercise_types()
+        self.analysis_type_combobox['values'] = exercise_types
+        if exercise_types:
+            self.analysis_exercise_type.set(exercise_types[0])
 
     def add_exercise(self) -> None:
         """Добавляет новое упражнение."""
@@ -377,6 +437,9 @@ class ExercisePlannerGUI:
 
             # Сохранение
             self.storage.add_exercise(exercise)
+            self.analyzer = ExerciseAnalyzer(
+                self.storage.get_all_exercises()
+            )
 
             # Очистка полей после добавления
             self.exercise_type_var.set("")
@@ -390,6 +453,7 @@ class ExercisePlannerGUI:
             # Обновление интерфейса
             self.update_exercise_type_list()
             self.update_type_filter()
+            self.update_analysis_types()
             self.refresh_exercises_list()
             self.update_statistics()
 
@@ -407,7 +471,38 @@ class ExercisePlannerGUI:
             )
 
     def delete_selected_exercise(self) -> None:
-        pass
+        """Удаляет выбранное упражнение."""
+        selected = self.exercises_tree.selection()
+        if not selected:
+            messagebox.showwarning(
+                "Предупреждение",
+                "Выберите упражнение для удаления"
+            )
+            return
+
+        try:
+            item = self.exercises_tree.item(selected[0])
+            exercise_id = int(item['values'][0])
+
+            if messagebox.askyesno(
+                "Подтверждение",
+                "Вы уверены, что хотите удалить это упражнение?"
+            ):
+                self.storage.remove_exercise(exercise_id)
+                self.analyzer = ExerciseAnalyzer(
+                    self.storage.get_all_exercises()
+                )
+                self.update_exercise_type_list()
+                self.update_type_filter()
+                self.update_analysis_types()
+                self.refresh_exercises_list()
+                self.update_statistics()
+                messagebox.showinfo("Успех", "Упражнение удалено")
+        except (ValueError, IndexError) as e:
+            messagebox.showerror(
+                "Ошибка",
+                f"Ошибка при удалении упражнения: {e}"
+            )
 
     def refresh_exercises_list(self) -> None:
             """Обновляет список упражнений с учетом фильтров."""
@@ -454,4 +549,70 @@ class ExercisePlannerGUI:
 
     def update_statistics(self) -> None:
         """Обновляет статистику в верхней панели."""
-        pass
+        try:
+            total_volume = self.analyzer.get_total_volume()
+            exercises_list = self.storage.get_all_exercises()
+            total_exercises = len(exercises_list)
+            exercise_types = len(
+                {ex.exercise_type for ex in exercises_list}
+            )
+
+            self.total_volume_label.config(
+                text=f"Общий объем: {total_volume}"
+            )
+            self.total_exercises_label.config(
+                text=f"Всего упражнений: {total_exercises}"
+            )
+            self.exercise_types_label.config(
+                text=f"Типов упражнений: {exercise_types}"
+            )
+        except Exception as e:
+            print(
+                f"Ошибка при обновлении статистики: {e}"
+            )
+
+    def plot_progress(self) -> None:
+        """Строит график прогресса по весу."""
+        try:
+            exercise_type = self.analysis_exercise_type.get()
+            if not exercise_type:
+                messagebox.showwarning(
+                    "Предупреждение",
+                    "Выберите тип упражнения для анализа"
+                )
+                return
+            self.analyzer.plot_progress_over_time(exercise_type)
+        except Exception as e:
+            messagebox.showerror(
+                "Ошибка",
+                f"Ошибка при построении графика: {e}"
+            )
+
+    def plot_volume_pie(self) -> None:
+        """Строит круговую диаграмму объема работы."""
+        try:
+            self.analyzer.plot_volume_by_exercise_type_pie()
+        except Exception as e:
+            messagebox.showerror(
+                "Ошибка",
+                f"Ошибка при построении диаграммы: {e}"
+            )
+
+    def plot_max_weights(self) -> None:
+        """Строит график максимальных весов."""
+        try:
+            self.analyzer.plot_max_weights_bar()
+        except Exception as e:
+            messagebox.showerror(
+                "Ошибка", f"Ошибка при построении графика: {e}"
+            )
+
+    def plot_volume_over_time(self) -> None:
+        """Строит график динамики объема работы."""
+        try:
+            self.analyzer.plot_total_volume_over_time()
+        except Exception as e:
+            messagebox.showerror(
+                "Ошибка",
+                f"Ошибка при построении графика: {e}"
+            )

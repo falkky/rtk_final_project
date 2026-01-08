@@ -107,7 +107,21 @@ class DataStorage:
         self.exercises.append(exercise)
         self.save_data()
         return exercise
-    
+
+    def remove_exercise(self, exercise_id: int) -> bool:
+        """
+        Удаляет упражнение по ID.
+        """
+        initial_length = len(self.exercises)
+        self.exercises = [
+            ex for ex in self.exercises if ex.exercise_id != exercise_id
+        ]
+
+        if len(self.exercises) < initial_length:
+            self.save_data()
+            return True
+        return False
+
     def get_all_exercises(self) -> List[Exercise]:
         """
         Возвращает список всех упражнений.
