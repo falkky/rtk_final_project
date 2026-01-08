@@ -6,7 +6,8 @@
 import json
 import csv
 import os
-from typing import List
+from datetime import datetime
+from typing import List, Optional
 
 from models import Exercise
 
@@ -29,7 +30,7 @@ class DataStorage:
         os.makedirs(directory_path, exist_ok=True)
 
         # Загружаем данные при инициализации
-        self.load_data()
+        # self.load_data()
 
     def load_data(self) -> None:
         """
