@@ -9,6 +9,10 @@ from tkinter import ttk, messagebox, filedialog
 
 from models import Exercise
 from storage import DataStorage
+from utils import (
+    validate_weight, validate_exercise_type,
+    validate_comment, validate_date, validate_sets, validate_reps
+)
 
 
 class ExercisePlannerGUI:
@@ -158,7 +162,7 @@ class ExercisePlannerGUI:
         # Дата
         ttk.Label(
             form_frame,
-            text="Дата (YYYY-MM-DD):"
+            text="Дата (DD.MM.YYYY):"
         ).grid(
             row=4,
             column=0,
@@ -166,7 +170,7 @@ class ExercisePlannerGUI:
             pady=5
         )
         self.date_entry = ttk.Entry(form_frame, width=20)
-        self.date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
+        self.date_entry.insert(0, datetime.now().strftime("%d.%m.%Y"))
         self.date_entry.grid(
             row=4,
             column=1,
@@ -215,4 +219,78 @@ class ExercisePlannerGUI:
 
     def add_exercise(self) -> None:
         """Добавляет новое упражнение."""
-        pass
+        try:
+            # Валидация типа упражнения
+            exercise_type_str = self.exercise_type_var.get()
+            is_valid, cleaned_type, error_msg = validate_exercise_type(
+                exercise_type_str
+            )
+            if not is_valid:
+                messagebox.showerror(
+                    "Ошибка",
+                    f"Ошибка в типе упражнения: {error_msg}"
+                )
+                return
+
+            # Валидация веса
+            weight_str = self.weight_entry.get()
+            is_valid, weight, error_msg = validate_weight(weight_str)
+            if not is_valid:
+                messagebox.showerror("Ошибка", f"Ошибка в весе: {error_msg}")
+                return
+
+            # Валидация подходов
+            sets_str = self.sets_entry.get()
+            is_valid, sets, error_msg = validate_sets(sets_str)
+            if not is_valid:
+                messagebox.showerror(
+                    "Ошибка",
+                    f"Ошибка в количестве подходов: {error_msg}"
+                )
+                return
+
+            # Валидация повторений
+            reps_str = self.reps_entry.get()
+            is_valid, reps, error_msg = validate_reps(reps_str)
+            if not is_valid:
+                messagebox.showerror(
+                    "Ошибка",
+                    f"Ошибка в количестве повторений: {error_msg}"
+                )
+                return
+
+            # Валидация даты
+            date_str = self.date_entry.get()
+            is_valid, date, error_msg = validate_date(date_str)
+            if not is_valid:
+                messagebox.showerror("Ошибка", f"Ошибка в дате: {error_msg}")
+                return
+
+            # Комментарий
+            comment = validate_comment(self.comment_entry.get())
+
+            # Создание упражнения
+            exercise = Exercise(
+                cleaned_type,
+                weight,
+                sets,
+                reps,
+                date,
+                comment
+            )
+
+            # Сохранение
+            self.storage.add_exercise(exercise)
+
+            messagebox.showinfo("Успех", "Упражнение успешно добавлено!")
+
+        except ValueError as e:
+            messagebox.showerror(
+                "Ошибка",
+                f"Ошибка при добавлении упражнения: {e}"
+            )
+        except Exception as e:
+            messagebox.showerror(
+                "Ошибка",
+                f"Неожиданная ошибка: {e}"
+            )
